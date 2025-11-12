@@ -122,3 +122,31 @@ The picture above shows how tools work step by step:
 ## How to Use
 
 The app will check which AI models you have set up and let you choose one. It reads lab reports from PDF files and gives medical advice while keeping things safe and professional.
+
+---
+
+## 🎓 Learn More About Agentic AI
+
+**To dive deep into agentic AI and its building blocks, I recommend exploring my comprehensive Agentic AI Course:**
+
+<div align="center">
+
+[![Agentic AI Course](https://img.shields.io/badge/GitHub-Agentic%20AI%20Course-181717?style=for-the-badge&logo=github)](https://github.com/nikhiliit/Agentic-AI-Course)
+
+**Course Link:** https://github.com/nikhiliit/Agentic-AI-Course
+
+</div>
+
+This course covers:
+- 🧠 **Advanced AI Agent Patterns** - Building intelligent autonomous systems
+- 🛠️ **Tool Integration** - Connecting AI with external tools and APIs
+- 📊 **Real-world Applications** - Practical agent implementations
+- 🔧 **Technical Deep Dives** - Understanding agent architecture and design
+
+*Perfect companion to this MedAI project for understanding the full spectrum of agentic AI development!*
+
+---
+
+**Thank you for exploring MedAI!** 🙏
+
+*Built with ❤️ for advancing medical AI and agentic systems*
