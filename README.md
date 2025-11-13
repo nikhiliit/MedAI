@@ -1,4 +1,31 @@
+---
+title: Medical_Report_Analysis
+app_file: app.py
+sdk: gradio
+sdk_version: 5.34.2
+---
 # MedAI - Medical AI Helper
+
+[![🤗 Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/sharmanikhiljiit/Medical_Report_Discussion_v1.2)
+
+## 🚀 Live Demo
+
+<div align="center">
+
+[![Try MedAI Live](https://img.shields.io/badge/🚀_Try_MedAI_Live-Demo-FF6B6B?style=for-the-badge&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/sharmanikhiljiit/Medical_Report_Discussion_v1.2)
+
+**👆 Click above to try MedAI live on Hugging Face Spaces**
+
+</div>
+
+**Demo Features:**
+- 🔮 Powered by **Google Gemini Flash API** for fast, accurate responses
+- 🔔 **Pushover integration** for real-time tool execution notifications
+- 📄 **PDF Upload**: Upload your lab reports directly in the web interface
+- 💬 **Interactive Chat**: Ask questions about your medical results
+- 🛡️ **Medical Safety**: Built-in ethical guidelines and content moderation
+
+---
 
 **MedAI** is a command-line medical helper that reads lab reports and gives general medical advice using different AI language models and smart tools. This project shows how to create AI assistants that can use tools to perform tasks, with safety features for medical use.
 
