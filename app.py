@@ -331,6 +331,7 @@ def chat_with_medai(message, history):
 def create_demo():
     """Create and return the Gradio demo."""
     global current_medai
+    initialization_success = False  # Default value
 
     try:
         # Try to initialize MedAI, but don't fail if API key is missing
