@@ -117,11 +117,12 @@ TOOL_FUNCTIONS = {
 class MedAI:
     """Medical AI Assistant using Google Gemini Flash."""
 
-    def __init__(self):
+    def __init__(self, pdf_file=None):
         """Initialize the Medical AI Assistant."""
         self.client = None
         self.lab_report_content = ""
         self.system_prompt = ""
+        self.pdf_file = pdf_file
         self._initialize_client()
         self._load_lab_report()
         self._create_system_prompt()
@@ -142,24 +143,35 @@ class MedAI:
 
     def _load_lab_report(self):
         """Load lab report from PDF file."""
-        pdf_path = "lab_report.pdf"  # Default filename for HF Spaces
-
         try:
-            if os.path.exists(pdf_path):
-                reader = PdfReader(pdf_path)
+            if self.pdf_file:
+                # Use uploaded PDF file
+                reader = PdfReader(self.pdf_file)
                 lab_report = ""
                 for page in reader.pages:
                     text = page.extract_text()
                     if text:
                         lab_report += text
                 self.lab_report_content = lab_report
-                print(f"✅ Lab report loaded from {pdf_path} ({len(lab_report)} characters)")
+                print(f"✅ Lab report loaded from uploaded file ({len(lab_report)} characters)")
             else:
-                print(f"⚠️ Lab report file not found: {pdf_path}")
-                self.lab_report_content = "No lab report available. Please upload a lab_report.pdf file."
+                # Try default file for HF Spaces
+                pdf_path = "lab_report.pdf"
+                if os.path.exists(pdf_path):
+                    reader = PdfReader(pdf_path)
+                    lab_report = ""
+                    for page in reader.pages:
+                        text = page.extract_text()
+                        if text:
+                            lab_report += text
+                    self.lab_report_content = lab_report
+                    print(f"✅ Lab report loaded from {pdf_path} ({len(lab_report)} characters)")
+                else:
+                    print("⚠️ No lab report available. Please upload a PDF file for analysis.")
+                    self.lab_report_content = "No lab report available. Please upload a PDF file containing your lab results for personalized analysis."
         except Exception as e:
             print(f"❌ Error loading lab report: {e}")
-            self.lab_report_content = "Error loading lab report."
+            self.lab_report_content = f"Error loading lab report: {str(e)}. Please try uploading a valid PDF file."
 
     def _create_system_prompt(self):
         """Create the medical system prompt."""
@@ -270,18 +282,42 @@ class MedAI:
             print(error_msg)
             return error_msg
 
+# Global variable to store the current MedAI instance
+current_medai = None
+
+def process_pdf_upload(pdf_file):
+    """Process uploaded PDF and create new MedAI instance."""
+    global current_medai
+    try:
+        if pdf_file is None:
+            return "❌ Please upload a PDF file first."
+        current_medai = MedAI(pdf_file)
+        return f"✅ PDF processed successfully! ({len(current_medai.lab_report_content)} characters extracted)\n\nYou can now ask me questions about your lab results."
+    except Exception as e:
+        return f"❌ Error processing PDF: {str(e)}. Please ensure it's a valid PDF file."
+
+def chat_with_medai(message, history):
+    """Chat function that uses the current MedAI instance."""
+    global current_medai
+    if current_medai is None:
+        return "Please upload a lab report PDF first to start analyzing your results."
+
+    return current_medai.chat(message, history)
+
 def create_demo():
     """Create and return the Gradio demo."""
+    global current_medai
+
     try:
-        medai = MedAI()
+        # Initialize with default (no PDF)
+        current_medai = MedAI()
         print("🤖 MedAI initialized successfully")
 
-        # Create Gradio interface
-        interface = gr.ChatInterface(
-            fn=medai.chat,
-            type="messages",
-            title="🩺 MedAI - Medical AI Assistant",
-            description="""
+        # Create Gradio interface with file upload
+        with gr.Blocks(title="🩺 MedAI - Medical AI Assistant", theme="soft") as interface:
+
+            gr.Markdown("# 🩺 MedAI - Medical AI Assistant")
+            gr.Markdown("""
             **Welcome to MedAI!** Your AI medical assistant for understanding lab reports and medical information.
 
             **⚠️ Important Medical Disclaimer:**
@@ -289,26 +325,71 @@ def create_demo():
             - Never provides specific medical diagnoses
             - Always consult healthcare professionals for medical concerns
             - Not a substitute for professional medical advice
+            """)
 
-            **Ask me about:**
-            - Blood test results and what they mean
-            - Medical terminology explanations
-            - General health information
-            - Lab report analysis
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("### 📄 Upload Lab Report")
+                    pdf_upload = gr.File(
+                        label="Upload your lab report PDF",
+                        file_types=[".pdf"],
+                        type="filepath"
+                    )
+                    upload_status = gr.Textbox(
+                        label="Upload Status",
+                        interactive=False,
+                        value="Please upload a PDF file to begin analysis."
+                    )
+                    upload_btn = gr.Button("Process PDF", variant="primary")
 
-            **I can also:**
-            - Record your contact information if you want to be contacted
-            - Flag inappropriate content for safety
-            - Notify medical staff about important queries
-            """,
-            theme="soft",
-            examples=[
-                "What does a high hemoglobin level mean?",
-                "Can you explain my cholesterol results?",
-                "What are normal blood sugar ranges?",
-                "How do I interpret liver function tests?"
-            ]
-        )
+                with gr.Column(scale=2):
+                    gr.Markdown("### 💬 Chat with Dr. AI")
+                    gr.Markdown("""
+                    **Ask me about:**
+                    - Blood test results and what they mean
+                    - Medical terminology explanations
+                    - General health information
+                    - Lab report analysis
+
+                    **I can also:**
+                    - Record your contact information if you want to be contacted
+                    - Flag inappropriate content for safety
+                    - Notify medical staff about important queries
+                    """)
+
+                    chatbot = gr.Chatbot(
+                        type="messages",
+                        examples=[
+                            "What does a high hemoglobin level mean?",
+                            "Can you explain my cholesterol results?",
+                            "What are normal blood sugar ranges?",
+                            "How do I interpret liver function tests?"
+                        ]
+                    )
+                    msg = gr.Textbox(
+                        placeholder="Ask me about your lab results...",
+                        show_label=False
+                    )
+                    clear = gr.Button("Clear Chat")
+
+            # Event handlers
+            upload_btn.click(
+                process_pdf_upload,
+                inputs=[pdf_upload],
+                outputs=[upload_status]
+            )
+
+            msg.submit(
+                chat_with_medai,
+                inputs=[msg, chatbot],
+                outputs=[msg, chatbot]
+            )
+
+            clear.click(
+                lambda: ([], ""),
+                outputs=[chatbot, msg],
+                queue=False
+            )
 
         return interface
 
@@ -317,7 +398,7 @@ def create_demo():
 
         # Fallback interface for errors
         def error_chat(message, history):
-            return f"❌ MedAI is not available due to configuration issues: {str(e)}\n\nPlease check that:\n- GOOGLE_API_KEY is set\n- lab_report.pdf exists (optional)"
+            return f"❌ MedAI is not available due to configuration issues: {str(e)}\n\nPlease check that:\n- GOOGLE_API_KEY is set\n- Try uploading a lab report PDF for analysis"
 
         return gr.ChatInterface(
             fn=error_chat,
@@ -331,5 +412,6 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",
         server_port=int(os.getenv("PORT", 7860)),
-        show_error=True
+        show_error=True,
+        share=False  # Disable public sharing for medical app
     )
