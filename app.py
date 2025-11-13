@@ -402,6 +402,7 @@ def create_demo():
 
         return gr.ChatInterface(
             fn=error_chat,
+            type="messages",
             title="🩺 MedAI - Configuration Error",
             description="MedAI could not be initialized. Please check configuration."
         )
