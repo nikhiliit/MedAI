@@ -123,12 +123,16 @@ class MedAI:
         self.lab_report_content = ""
         self.system_prompt = ""
         self.pdf_file = pdf_file
-        self._initialize_client()
+        self.client_initialized = False
+        # Don't initialize client immediately - do it lazily
         self._load_lab_report()
         self._create_system_prompt()
 
     def _initialize_client(self):
-        """Initialize Google Gemini client."""
+        """Initialize Google Gemini client lazily."""
+        if self.client_initialized:
+            return
+
         if not Config.GOOGLE_API_KEY:
             raise ValueError("GOOGLE_API_KEY environment variable is required")
 
@@ -137,6 +141,7 @@ class MedAI:
                 api_key=Config.GOOGLE_API_KEY,
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
             )
+            self.client_initialized = True
             print("✅ Google Gemini client initialized")
         except Exception as e:
             raise ValueError(f"Failed to initialize Gemini client: {e}")
@@ -231,8 +236,17 @@ class MedAI:
         if not message.strip():
             return ""
 
+        # Try to initialize client if not done yet
+        try:
+            self._initialize_client()
+        except ValueError as e:
+            if "GOOGLE_API_KEY" in str(e):
+                return "❌ **Configuration Required**\n\nTo use this medical AI assistant, you need to set the GOOGLE_API_KEY environment variable.\n\n**For HF Spaces**: The API key should be configured in Space secrets.\n\n**For local development**: Set the GOOGLE_API_KEY environment variable."
+            else:
+                return f"❌ Configuration error: {str(e)}"
+
         if not self.client:
-            return "❌ AI assistant is not properly configured. Please check API keys."
+            return "❌ AI assistant failed to initialize. Please check your configuration."
 
         # Build messages from history
         messages = [{"role": "system", "content": self.system_prompt}]
@@ -291,6 +305,11 @@ def process_pdf_upload(pdf_file):
     try:
         if pdf_file is None:
             return "❌ Please upload a PDF file first."
+
+        # Check if we have API key configured
+        if not Config.GOOGLE_API_KEY:
+            return "❌ GOOGLE_API_KEY not configured. Please set the API key in environment variables or HF Space secrets to enable AI functionality."
+
         current_medai = MedAI(pdf_file)
         return f"✅ PDF processed successfully! ({len(current_medai.lab_report_content)} characters extracted)\n\nYou can now ask me questions about your lab results."
     except Exception as e:
@@ -299,6 +318,11 @@ def process_pdf_upload(pdf_file):
 def chat_with_medai(message, history):
     """Chat function that uses the current MedAI instance."""
     global current_medai
+
+    # Check if API key is configured
+    if not Config.GOOGLE_API_KEY:
+        return "❌ **API Key Required**\n\nTo use this medical AI assistant, you need to configure the GOOGLE_API_KEY:\n\n• **HF Spaces**: Set it in Space secrets\n• **Local**: Set GOOGLE_API_KEY environment variable\n\nThe PDF upload will work, but AI responses require the API key."
+
     if current_medai is None:
         return "Please upload a lab report PDF first to start analyzing your results."
 
@@ -309,9 +333,20 @@ def create_demo():
     global current_medai
 
     try:
-        # Initialize with default (no PDF)
-        current_medai = MedAI()
-        print("🤖 MedAI initialized successfully")
+        # Try to initialize MedAI, but don't fail if API key is missing
+        try:
+            current_medai = MedAI()
+            print("🤖 MedAI initialized successfully")
+            initialization_success = True
+        except ValueError as e:
+            if "GOOGLE_API_KEY" in str(e):
+                print("⚠️ GOOGLE_API_KEY not configured - app will show configuration message")
+                current_medai = None
+                initialization_success = False
+            else:
+                print(f"❌ Failed to initialize MedAI: {e}")
+                current_medai = None
+                initialization_success = False
 
         # Create Gradio interface with file upload
         with gr.Blocks(title="🩺 MedAI - Medical AI Assistant", theme="soft") as interface:
@@ -338,7 +373,7 @@ def create_demo():
                     upload_status = gr.Textbox(
                         label="Upload Status",
                         interactive=False,
-                        value="Please upload a PDF file to begin analysis."
+                        value="Please upload a PDF file to begin analysis." if initialization_success else "⚠️ API key not configured. Configure GOOGLE_API_KEY to enable AI responses."
                     )
                     upload_btn = gr.Button("Process PDF", variant="primary")
 
