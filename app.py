@@ -13,8 +13,9 @@ from pypdf import PdfReader
 from openai import OpenAI
 import gradio as gr
 
-# Load environment variables
-load_dotenv(override=True)
+# Load environment variables (only if .env file exists)
+if os.path.exists('.env'):
+    load_dotenv(override=True)
 
 # Configuration
 class Config:
@@ -119,14 +120,20 @@ class MedAI:
 
     def __init__(self, pdf_file=None):
         """Initialize the Medical AI Assistant."""
-        self.client = None
-        self.lab_report_content = ""
-        self.system_prompt = ""
-        self.pdf_file = pdf_file
-        self.client_initialized = False
-        # Don't initialize client immediately - do it lazily
-        self._load_lab_report()
-        self._create_system_prompt()
+        try:
+            self.client = None
+            self.lab_report_content = ""
+            self.system_prompt = ""
+            self.pdf_file = pdf_file
+            self.client_initialized = False
+            # Don't initialize client immediately - do it lazily
+            self._load_lab_report()
+            self._create_system_prompt()
+        except Exception as e:
+            print(f"Error in MedAI.__init__: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     def _initialize_client(self):
         """Initialize Google Gemini client lazily."""
@@ -149,8 +156,10 @@ class MedAI:
     def _load_lab_report(self):
         """Load lab report from PDF file."""
         try:
+            print(f"DEBUG: _load_lab_report called with pdf_file={self.pdf_file}")
             if self.pdf_file:
                 # Use uploaded PDF file
+                print(f"DEBUG: Loading uploaded file: {self.pdf_file}")
                 reader = PdfReader(self.pdf_file)
                 lab_report = ""
                 for page in reader.pages:
@@ -162,7 +171,9 @@ class MedAI:
             else:
                 # Try default file for HF Spaces
                 pdf_path = "lab_report.pdf"
+                print(f"DEBUG: Checking for default file: {pdf_path}, exists: {os.path.exists(pdf_path)}")
                 if os.path.exists(pdf_path):
+                    print(f"DEBUG: Loading default file: {pdf_path}")
                     reader = PdfReader(pdf_path)
                     lab_report = ""
                     for page in reader.pages:
@@ -176,6 +187,8 @@ class MedAI:
                     self.lab_report_content = "No lab report available. Please upload a PDF file containing your lab results for personalized analysis."
         except Exception as e:
             print(f"❌ Error loading lab report: {e}")
+            import traceback
+            traceback.print_exc()
             self.lab_report_content = f"Error loading lab report: {str(e)}. Please try uploading a valid PDF file."
 
     def _create_system_prompt(self):
